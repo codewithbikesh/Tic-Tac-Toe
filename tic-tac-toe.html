@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Multiplayer Tic Tac Toe - Firebase Powered</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <style>
+        .board-cell {
+            transition: all 0.3s ease;
+            aspect-ratio: 1;
+            min-height: 80px;
+        }
+
+        .board-cell:hover:not(.occupied) {
+            background-color: #f3f4f6;
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .winning-cell {
+            background-color: #fbbf24 !important;
+            animation: pulse 1s infinite;
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        .copy-success {
+            animation: bounce 0.5s ease-in-out;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .room-code-display {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+            font-weight: bold;
+        }
+
+        .connecting-dots::after {
+            content: '';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+
+        @keyframes dots {
+
+            0%,
+            20% {
+                content: '.';
+            }
+
+            40% {
+                content: '..';
+            }
+
+            60% {
+                content: '...';
+            }
+
+            80%,
+            100% {
+                content: '';
+            }
+        }
+
+        .online-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        .offline-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: #ef4444;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+
+        .occupied {
+            pointer-events: none;
+        }
+
+        .setup-instructions {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+
+        .player-indicator {
+            transition: all 0.3s ease;
+        }
+
+        .player-active {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100 min-h-screen">
+    <!-- Firebase Setup Instructions Modal -->
+    <div id="setupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-2xl p-8 max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="text-center mb-6">
+                <div class="text-6xl mb-4">🔥🦒🐼</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">Firebase Setup Required</h2>
+                <p class="text-gray-600">This game uses Firebase for real-time multiplayer functionality</p>
+            </div>
+
+            <div class="space-y-6 text-left">
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                    <h3 class="font-semibold text-yellow-800 mb-2">Quick Start Options:</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center gap-2">
+                            <input type="radio" id="demoMode" name="setupMode" value="demo" checked>
+                            <label for="demoMode" class="text-yellow-700">Use Demo Mode (Limited functionality, data may
+                                be cleared)</label>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="radio" id="ownFirebase" name="setupMode" value="own">
+                            <label for="ownFirebase" class="text-yellow-700">Use My Own Firebase Project
+                                (Recommended)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ownFirebaseInstructions" class="hidden space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-blue-800 mb-3">Setup Your Firebase Project:</h4>
+                        <ol class="list-decimal list-inside space-y-2 text-sm text-blue-700">
+                            <li>Go to <a href="https://console.firebase.google.com" target="_blank"
+                                    class="underline">Firebase Console</a></li>
+                            <li>Create a new project or select existing one</li>
+                            <li>Enable Realtime Database in "Build" → "Realtime Database"</li>
+                            <li>Set database rules to allow read/write (for testing):</li>
+                        </ol>
+                        <pre class="bg-gray-800 text-green-400 p-3 rounded mt-2 text-xs overflow-x-auto">
+{
+  "rules": {
+    ".read": true,
+    ".write": true
+  }
+}</pre>
+                        <p class="text-xs text-blue-600 mt-2">⚠️ These rules are for testing only. Use proper security
+                            rules in production.</p>
+                    </div>
+
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-green-800 mb-3">Get Your Config:</h4>
+                        <ol class="list-decimal list-inside space-y-1 text-sm text-green-700">
+                            <li>Go to Project Settings → General</li>
+                            <li>Scroll to "Your apps" and click "Web app" icon</li>
+                            <li>Copy the config object and paste below</li>
+                        </ol>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Paste Your Firebase Config:</label>
+                        <textarea id="firebaseConfigInput" placeholder='Paste your Firebase config here:
+{
+  apiKey: "your-api-key",
+  authDomain: "your-project.firebaseapp.com",
+  databaseURL: "https://your-project-rtdb.firebaseio.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "your-app-id"
+}' class="w-full h-32 p-3 border border-gray-300 rounded-lg text-sm font-mono"></textarea>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button id="continueDemo"
+                        class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                        <i class="fas fa-play mr-2"></i>Continue with Demo
+                    </button>
+                    <button id="useOwnConfig"
+                        class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-all">
+                        <i class="fas fa-check mr-2"></i>Use My Config
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="notification bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+        <div class="flex items-center gap-2">
+            <i class="fas fa-check-circle"></i>
+            <span id="notificationText">Connected to Firebase!</span>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="fixed inset-0 bg-white flex items-center justify-center z-40">
+        <div class="text-center">
+            <div class="text-6xl mb-4">🦒🐼</div>
+            <div class="text-xl font-semibold text-gray-700 mb-4">Connecting to game server...</div>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-6xl font-bold text-gray-800 mb-2">
+                🦒 vs 🐼
+            </h1>
+            <p class="text-xl text-gray-600 mb-2">Real-time Multiplayer Tic Tac Toe</p>
+            <div id="connectionStatus" class="text-sm">
+                <span class="offline-indicator"></span>
+                <span class="text-red-600">Connecting...</span>
+            </div>
+        </div>
+
+        <!-- Main Game Container -->
+        <div class="max-w-4xl mx-auto">
+            <!-- Room Management Section -->
+            <div id="roomSection" class="game-container rounded-xl shadow-lg p-6 mb-6 fade-in">
+                <div id="homeView" class="text-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Choose Your Game Mode</h2>
+                    <div class="flex flex-col md:flex-row gap-4 justify-center">
+                        <button id="createRoomBtn"
+                            class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-4 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-plus mr-2"></i>Create New Room
+                        </button>
+                        <button id="joinRoomBtn"
+                            class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-lg transition-all transform hover:scale-105 shadow-lg">
+                            <i class="fas fa-door-open mr-2"></i>Join Room
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Create Room View -->
+                <div id="createRoomView" class="hidden text-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Room Created Successfully!</h2>
+                    <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-4 border border-blue-200">
+                        <p class="text-sm text-gray-600 mb-3">Share this room code with your friend:</p>
+                        <div class="flex items-center justify-center gap-3 mb-4">
+                            <span id="roomCodeDisplay"
+                                class="text-4xl font-bold text-blue-600 room-code-display bg-white px-4 py-2 rounded-lg shadow"></span>
+                            <button id="copyRoomCodeBtn"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg transition-all shadow hover:shadow-lg">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="text-xs text-gray-500 mb-3">Or share this link:</div>
+                        <div class="flex items-center gap-2">
+                            <input id="shareUrlInput" type="text" readonly
+                                class="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm" />
+                            <button id="copyUrlBtn"
+                                class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm transition-all">
+                                <i class="fas fa-link"></i>
+                            </button>
+                        </div>
+                        <div id="copySuccess" class="hidden text-green-600 mt-3 font-semibold">
+                            <i class="fas fa-check"></i> Copied to clipboard!
+                        </div>
+                    </div>
+                    <div id="waitingMessage"
+                        class="text-gray-600 mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <i class="fas fa-clock mr-2 text-yellow-600"></i>Waiting for player 2<span
+                            class="connecting-dots"></span>
+                    </div>
+                    <button id="backToHomeBtn"
+                        class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-all">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Home
+                    </button>
+                </div>
+
+                <!-- Join Room View -->
+                <div id="joinRoomView" class="hidden text-center">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Join Existing Room</h2>
+                    <div class="max-w-md mx-auto">
+                        <div class="flex gap-3 mb-4">
+                            <input type="text" id="roomCodeInput" placeholder="Enter room code"
+                                class="flex-1 px-4 py-4 border-2 border-gray-300 rounded-lg text-center text-xl room-code-display uppercase focus:border-blue-500 focus:outline-none transition-all"
+                                maxlength="6">
+                            <button id="joinGameBtn"
+                                class="bg-green-500 hover:bg-green-600 text-white px-8 py-4 rounded-lg transition-all shadow hover:shadow-lg">
+                                <i class="fas fa-play mr-2"></i>Join
+                            </button>
+                        </div>
+                        <div id="joinError"
+                            class="hidden text-red-600 mb-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span id="joinErrorMessage"></span>
+                        </div>
+                        <div id="joiningLoader"
+                            class="hidden text-blue-600 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>Joining room...
+                        </div>
+                        <button id="backToHomeBtn2"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition-all">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Section -->
+            <div id="gameSection" class="hidden">
+                <!-- Game Info -->
+                <div class="game-container rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div class="text-center md:text-left">
+                            <div class="text-sm text-gray-600">Room Code:</div>
+                            <div id="gameRoomCode" class="text-2xl font-bold text-blue-600 room-code-display"></div>
+                        </div>
+                        <div id="gameStatus" class="text-center">
+                            <div class="text-lg font-semibold text-gray-800"></div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="rematchBtn"
+                                class="hidden bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all">
+                                <i class="fas fa-redo mr-2"></i>Rematch
+                            </button>
+                            <button id="leaveGameBtn"
+                                class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all">
+                                <i class="fas fa-sign-out-alt mr-2"></i>Leave Game
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Players Info -->
+                <div class="game-container rounded-xl shadow-lg p-6 mb-6">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div id="player1Info"
+                            class="player-indicator text-center p-6 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
+                            <div class="text-5xl mb-3">🦒</div>
+                            <div class="font-bold text-lg text-blue-800">Player 1 (Giraffe)</div>
+                            <div id="player1Status" class="text-sm text-gray-600 flex items-center justify-center mt-2">
+                            </div>
+                        </div>
+                        <div id="player2Info"
+                            class="player-indicator text-center p-6 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
+                            <div class="text-5xl mb-3">🐼</div>
+                            <div class="font-bold text-lg text-orange-800">Player 2 (Panda)</div>
+                            <div id="player2Status" class="text-sm text-gray-600 flex items-center justify-center mt-2">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Board -->
+                <div class="game-container rounded-xl shadow-lg p-6">
+                    <div id="gameBoard" class="grid grid-cols-3 gap-4 max-w-md mx-auto">
+                        <!-- Board cells will be generated by JavaScript -->
+                    </div>
+                    <div id="gameResult" class="hidden text-center mt-8">
+                        <div id="resultMessage" class="text-3xl font-bold mb-4"></div>
+                        <div class="text-lg text-gray-600">Game Over!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-app-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        class FirebaseTicTacToe {
+            constructor() {
+                this.initializeSetup();
+            }
+
+            initializeSetup() {
+                // Show setup modal
+                document.getElementById('setupModal').style.display = 'flex';
+
+                // Setup event listeners
+                document.getElementById('continueDemo').addEventListener('click', () => this.useDemoConfig());
+                document.getElementById('useOwnConfig').addEventListener('click', () => this.useCustomConfig());
+
+                // Setup mode radio buttons
+                document.querySelectorAll('input[name="setupMode"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        const ownFirebaseInstructions = document.getElementById('ownFirebaseInstructions');
+                        if (e.target.value === 'own') {
+                            ownFirebaseInstructions.classList.remove('hidden');
+                        } else {
+                            ownFirebaseInstructions.classList.add('hidden');
+                        }
+                    });
+                });
+            }
+
+            useDemoConfig() {
+                // Demo Firebase configuration (publicly accessible for demo purposes)
+                const demoConfig = {
+                    apiKey: "AIzaSyCOalrvYqOxFqlSGgKynmeYZxA2-XVA97M",
+                    authDomain: "tic-tac-toe-a956e.firebaseapp.com",
+                    projectId: "tic-tac-toe-a956e",
+                    storageBucket: "tic-tac-toe-a956e.firebasestorage.app",
+                    messagingSenderId: "112423245737",
+                    appId: "1:112423245737:web:89f98fc2ab49d6176496b8",
+                    measurementId: "G-0MSWKGSQJ6"
+                };
+
+                this.initializeFirebase(demoConfig, true);
+            }
+
+            useCustomConfig() {
+                const configText = document.getElementById('firebaseConfigInput').value.trim();
+
+                if (!configText) {
+                    alert('Please paste your Firebase configuration');
+                    return;
+                }
+
+                try {
+                    // Try to parse the config
+                    let config;
+                    if (configText.startsWith('{')) {
+                        // JSON format
+                        config = JSON.parse(configText);
+                    } else {
+                        // JavaScript object format - eval it safely
+                        config = eval('(' + configText + ')');
+                    }
+
+                    // Validate required fields
+                    const requiredFields = ['apiKey', 'authDomain', 'databaseURL', 'projectId'];
+                    for (const field of requiredFields) {
+                        if (!config[field]) {
+                            throw new Error(`Missing required field: ${field}`);
+                        }
+                    }
+
+                    this.initializeFirebase(config, false);
+
+                } catch (error) {
+                    alert('Invalid Firebase configuration. Please check your config format.');
+                    console.error('Config parse error:', error);
+                }
+            }
+
+            async initializeFirebase(config, isDemo) {
+                try {
+                    // Hide setup modal
+                    document.getElementById('setupModal').style.display = 'none';
+
+                    // Initialize Firebase
+                    firebase.initializeApp(config);
+                    this.database = firebase.database();
+
+                    // Initialize game
+                    this.currentRoom = null;
+                    this.playerId = this.generatePlayerId();
+                    this.playerNumber = null;
+                    this.gameState = {
+                        board: Array(9).fill(''),
+                        currentPlayer: 1,
+                        gameStatus: 'waiting',
+                        winner: null,
+                        winningCells: [],
+                        players: {},
+                        lastMove: null
+                    };
+                    this.roomRef = null;
+                    this.isConnected = false;
+                    this.isDemo = isDemo;
+
+                    this.setupFirebaseConnection();
+                    this.initializeEventListeners();
+                    this.checkURLForRoom();
+
+                    if (isDemo) {
+                        this.showNotification('Demo mode active - data may be cleared periodically', 'warning');
+                    } else {
+                        this.showNotification('Connected to your Firebase project!', 'success');
+                    }
+
+                } catch (error) {
+                    console.error('Firebase initialization error:', error);
+                    alert('Failed to connect to Firebase. Please check your configuration and try again.');
+                    document.getElementById('setupModal').style.display = 'flex';
+                }
+            }
+
+            generatePlayerId() {
+                return 'player_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            }
+
+            generateRoomCode() {
+                const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+                let result = '';
+                for (let i = 0; i < 6; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+
+            setupFirebaseConnection() {
+                try {
+                    // Test connection
+                    const connectedRef = this.database.ref('.info/connected');
+                    connectedRef.on('value', (snapshot) => {
+                        this.isConnected = snapshot.val() === true;
+                        this.updateConnectionStatus();
+                        if (this.isConnected) {
+                            document.getElementById('loadingScreen').style.display = 'none';
+                        }
+                    });
+
+                    // Clean up on disconnect
+                    window.addEventListener('beforeunload', () => {
+                        this.leaveGame();
+                    });
+
+                } catch (error) {
+                    console.error('Firebase connection error:', error);
+                    this.showOfflineMode();
+                }
+            }
+
+            updateConnectionStatus() {
+                const statusEl = document.getElementById('connectionStatus');
+                if (this.isConnected) {
+                    statusEl.innerHTML = '<span class="online-indicator"></span><span class="text-green-600">Connected</span>';
+                } else {
+                    statusEl.innerHTML = '<span class="offline-indicator"></span><span class="text-red-600">Connecting...</span>';
+                }
+            }
+
+            showOfflineMode() {
+                document.getElementById('loadingScreen').style.display = 'none';
+                this.showNotification('Unable to connect to Firebase. Please check your configuration.', 'error');
+            }
+
+            showNotification(message, type = 'success') {
+                const notification = document.getElementById('notification');
+                const text = document.getElementById('notificationText');
+
+                // Set message
+                text.textContent = message;
+
+                // Set colors based on type
+                notification.className = 'notification px-6 py-3 rounded-lg shadow-lg';
+                switch (type) {
+                    case 'success':
+                        notification.classList.add('bg-green-500', 'text-white');
+                        break;
+                    case 'warning':
+                        notification.classList.add('bg-yellow-500', 'text-white');
+                        break;
+                    case 'error':
+                        notification.classList.add('bg-red-500', 'text-white');
+                        break;
+                }
+
+                // Show notification
+                notification.classList.add('show');
+
+                // Hide after 4 seconds
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 4000);
+            }
+
+            initializeEventListeners() {
+                document.getElementById('createRoomBtn').addEventListener('click', () => this.createRoom());
+                document.getElementById('joinRoomBtn').addEventListener('click', () => this.showJoinRoomView());
+                document.getElementById('joinGameBtn').addEventListener('click', () => this.joinRoom());
+                document.getElementById('copyRoomCodeBtn').addEventListener('click', () => this.copyRoomCode());
+                document.getElementById('copyUrlBtn').addEventListener('click', () => this.copyShareUrl());
+                document.getElementById('backToHomeBtn').addEventListener('click', () => this.showHomeView());
+                document.getElementById('backToHomeBtn2').addEventListener('click', () => this.showHomeView());
+                document.getElementById('leaveGameBtn').addEventListener('click', () => this.leaveGame());
+                document.getElementById('rematchBtn').addEventListener('click', () => this.requestRematch());
+
+                document.getElementById('roomCodeInput').addEventListener('input', (e) => {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+
+                document.getElementById('roomCodeInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.joinRoom();
+                    }
+                });
+            }
+
+            checkURLForRoom() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomCode = urlParams.get('room');
+                if (roomCode) {
+                    document.getElementById('roomCodeInput').value = roomCode.toUpperCase();
+                    this.showJoinRoomView();
+                }
+            }
+
+            async createRoom() {
+                if (!this.isConnected) {
+                    this.showNotification('Not connected to Firebase. Please wait...', 'warning');
+                    return;
+                }
+
+                const roomCode = this.generateRoomCode();
+                this.currentRoom = roomCode;
+                this.playerNumber = 1;
+
+                try {
+                    this.roomRef = this.database.ref(`rooms/${roomCode}`);
+
+                    // Initialize room data
+                    const roomData = {
+                        code: roomCode,
+                        players: {
+                            [this.playerId]: {
+                                number: 1,
+                                connected: true,
+                                lastSeen: firebase.database.ServerValue.TIMESTAMP
+                            }
+                        },
+                        gameState: { ...this.gameState },
+                        createdAt: firebase.database.ServerValue.TIMESTAMP,
+                        lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                    };
+
+                    await this.roomRef.set(roomData);
+
+                    // Set up presence
+                    this.setupPresence();
+                    this.listenToRoomChanges();
+
+                    this.showCreateRoomView(roomCode);
+                    this.updateURL(roomCode);
+                    this.showNotification(`Room ${roomCode} created successfully!`, 'success');
+
+                } catch (error) {
+                    console.error('Error creating room:', error);
+                    this.showNotification('Failed to create room. Please try again.', 'error');
+                }
+            }
+
+            setupPresence() {
+                if (!this.roomRef || !this.playerId) return;
+
+                const playerRef = this.roomRef.child(`players/${this.playerId}`);
+
+                // Update last seen timestamp regularly
+                this.presenceInterval = setInterval(() => {
+                    if (this.isConnected) {
+                        playerRef.child('lastSeen').set(firebase.database.ServerValue.TIMESTAMP);
+                        playerRef.child('connected').set(true);
+                    }
+                }, 5000);
+
+                // Handle disconnect
+                playerRef.child('connected').onDisconnect().set(false);
+            }
+
+            listenToRoomChanges() {
+                if (!this.roomRef) return;
+
+                this.roomRef.on('value', (snapshot) => {
+                    const roomData = snapshot.val();
+                    if (!roomData) {
+                        this.handleRoomNotFound();
+                        return;
+                    }
+
+                    this.gameState = roomData.gameState;
+                    this.updateGameDisplay();
+                    this.cleanupDisconnectedPlayers(roomData);
+
+                    // If we're waiting and player 2 joins, start the game
+                    if (this.gameState.gameStatus === 'waiting' && Object.keys(roomData.players).length === 2) {
+                        this.gameState.gameStatus = 'playing';
+                        this.roomRef.child('gameState/gameStatus').set('playing');
+                        this.showGame();
+                        this.showNotification('Player 2 joined! Game starting...', 'success');
+                    }
+                });
+            }
+
+            cleanupDisconnectedPlayers(roomData) {
+                const now = Date.now();
+                const timeout = 45000; // 45 seconds timeout
+
+                Object.keys(roomData.players).forEach(playerId => {
+                    const player = roomData.players[playerId];
+                    if (!player.connected && player.lastSeen && (now - player.lastSeen > timeout)) {
+                        // Player has been disconnected for too long, remove them
+                        this.roomRef.child(`players/${playerId}`).remove();
+                        this.showNotification('A player has disconnected', 'warning');
+                    }
+                });
+            }
+
+            showJoinRoomView() {
+                document.getElementById('homeView').classList.add('hidden');
+                document.getElementById('createRoomView').classList.add('hidden');
+                document.getElementById('joinRoomView').classList.remove('hidden');
+                document.getElementById('joinError').classList.add('hidden');
+            }
+
+            showCreateRoomView(roomCode) {
+                document.getElementById('homeView').classList.add('hidden');
+                document.getElementById('joinRoomView').classList.add('hidden');
+                document.getElementById('createRoomView').classList.remove('hidden');
+                document.getElementById('roomCodeDisplay').textContent = roomCode;
+
+                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${roomCode}`;
+                document.getElementById('shareUrlInput').value = shareUrl;
+            }
+
+            showHomeView() {
+                this.leaveGame();
+                document.getElementById('createRoomView').classList.add('hidden');
+                document.getElementById('joinRoomView').classList.add('hidden');
+                document.getElementById('homeView').classList.remove('hidden');
+                document.getElementById('gameSection').classList.add('hidden');
+                document.getElementById('roomSection').classList.remove('hidden');
+            }
+
+            async copyRoomCode() {
+                const roomCode = document.getElementById('roomCodeDisplay').textContent;
+                await this.copyToClipboard(roomCode);
+            }
+
+            async copyShareUrl() {
+                const shareUrl = document.getElementById('shareUrlInput').value;
+                await this.copyToClipboard(shareUrl);
+            }
+
+            async copyToClipboard(text) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    this.showCopySuccess();
+                } catch (err) {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    this.showCopySuccess();
+                }
+            }
+
+            showCopySuccess() {
+                const successEl = document.getElementById('copySuccess');
+                successEl.classList.remove('hidden');
+                successEl.classList.add('copy-success');
+                setTimeout(() => {
+                    successEl.classList.add('hidden');
+                    successEl.classList.remove('copy-success');
+                }, 2000);
+            }
+
+            async joinRoom() {
+                const roomCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+
+                if (!this.isConnected) {
+                    this.showJoinError('Not connected to Firebase. Please wait for connection.');
+                    return;
+                }
+
+                if (!roomCode) {
+                    this.showJoinError('Please enter a room code');
+                    return;
+                }
+
+                if (roomCode.length !== 6) {
+                    this.showJoinError('Room code must be 6 characters');
+                    return;
+                }
+
+                document.getElementById('joiningLoader').classList.remove('hidden');
+                document.getElementById('joinError').classList.add('hidden');
+
+                try {
+                    const roomRef = this.database.ref(`rooms/${roomCode}`);
+                    const snapshot = await roomRef.once('value');
+                    const roomData = snapshot.val();
+
+                    if (!roomData) {
+                        this.showJoinError('Room not found');
+                        document.getElementById('joiningLoader').classList.add('hidden');
+                        return;
+                    }
+
+                    const playerCount = Object.keys(roomData.players).length;
+                    if (playerCount >= 2) {
+                        this.showJoinError('Room is full');
+                        document.getElementById('joiningLoader').classList.add('hidden');
+                        return;
+                    }
+
+                    this.currentRoom = roomCode;
+                    this.playerNumber = 2;
+                    this.roomRef = roomRef;
+
+                    // Add player to room
+                    await roomRef.child(`players/${this.playerId}`).set({
+                        number: 2,
+                        connected: true,
+                        lastSeen: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    // Update game status to playing
+                    await roomRef.child('gameState/gameStatus').set('playing');
+
+                    this.setupPresence();
+                    this.listenToRoomChanges();
+                    this.showGame();
+                    this.updateURL(roomCode);
+                    this.showNotification(`Joined room ${roomCode} successfully!`, 'success');
+
+                    document.getElementById('joiningLoader').classList.add('hidden');
+
+                } catch (error) {
+                    console.error('Error joining room:', error);
+                    this.showJoinError('Failed to join room. Please try again.');
+                    document.getElementById('joiningLoader').classList.add('hidden');
+                }
+            }
+
+            showJoinError(message) {
+                document.getElementById('joinErrorMessage').textContent = message;
+                document.getElementById('joinError').classList.remove('hidden');
+            }
+
+            showGame() {
+                document.getElementById('roomSection').classList.add('hidden');
+                document.getElementById('gameSection').classList.remove('hidden');
+                document.getElementById('gameRoomCode').textContent = this.currentRoom;
+                this.initializeBoard();
+                this.updateGameDisplay();
+            }
+
+            initializeBoard() {
+                const board = document.getElementById('gameBoard');
+                board.innerHTML = '';
+
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell bg-white border-2 border-gray-300 rounded-lg flex items-center justify-center text-5xl cursor-pointer hover:bg-gray-50 shadow-sm';
+                    cell.dataset.index = i;
+                    cell.addEventListener('click', () => this.makeMove(i));
+                    board.appendChild(cell);
+                }
+            }
+
+            async makeMove(index) {
+                if (!this.canMakeMove(index)) return;
+
+                try {
+                    const updates = {};
+                    updates[`gameState/board/${index}`] = this.playerNumber === 1 ? 'giraffe' : 'panda';
+                    updates[`gameState/currentPlayer`] = this.playerNumber === 1 ? 2 : 1;
+                    updates[`gameState/lastMove`] = {
+                        player: this.playerNumber,
+                        position: index,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    };
+
+                    // Check for winner
+                    const newBoard = [...this.gameState.board];
+                    newBoard[index] = this.playerNumber === 1 ? 'giraffe' : 'panda';
+
+                    const winner = this.checkWinner(newBoard);
+                    if (winner) {
+                        updates['gameState/gameStatus'] = 'finished';
+                        updates['gameState/winner'] = winner.player;
+                        updates['gameState/winningCells'] = winner.cells;
+                    } else if (newBoard.every(cell => cell !== '')) {
+                        updates['gameState/gameStatus'] = 'finished';
+                        updates['gameState/winner'] = 'draw';
+                    }
+
+                    await this.roomRef.update(updates);
+
+                } catch (error) {
+                    console.error('Error making move:', error);
+                    this.showNotification('Failed to make move. Please try again.', 'error');
+                }
+            }
+
+            canMakeMove(index) {
+                return this.gameState.gameStatus === 'playing' &&
+                    this.gameState.currentPlayer === this.playerNumber &&
+                    this.gameState.board[index] === '';
+            }
+
+            checkWinner(board) {
+                const winPatterns = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                    [0, 4, 8], [2, 4, 6]
+                ];
+
+                for (const pattern of winPatterns) {
+                    const [a, b, c] = pattern;
+                    if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                        return {
+                            player: board[a] === 'giraffe' ? 1 : 2,
+                            cells: pattern
+                        };
+                    }
+                }
+                return null;
+            }
+
+            updateGameDisplay() {
+                this.updateBoard();
+                this.updateGameStatus();
+                this.updatePlayerInfo();
+            }
+
+            updateBoard() {
+                const cells = document.querySelectorAll('.board-cell');
+                cells.forEach((cell, index) => {
+                    const value = this.gameState.board[index];
+                    cell.textContent = value === 'giraffe' ? '🦒' : value === 'panda' ? '🐼' : '';
+
+                    if (value) {
+                        cell.classList.add('occupied');
+                        cell.classList.remove('cursor-pointer', 'hover:bg-gray-50');
+                    } else {
+                        cell.classList.remove('occupied');
+                        if (this.gameState.gameStatus === 'playing' && this.gameState.currentPlayer === this.playerNumber) {
+                            cell.classList.add('cursor-pointer', 'hover:bg-gray-50');
+                        }
+                    }
+
+                    if (this.gameState.winningCells && this.gameState.winningCells.includes(index)) {
+                        cell.classList.add('winning-cell');
+                    } else {
+                        cell.classList.remove('winning-cell');
+                    }
+                });
+            }
+
+            updateGameStatus() {
+                const statusEl = document.getElementById('gameStatus');
+                const resultEl = document.getElementById('gameResult');
+                const resultMessageEl = document.getElementById('resultMessage');
+                const rematchBtn = document.getElementById('rematchBtn');
+
+                if (this.gameState.gameStatus === 'waiting') {
+                    statusEl.innerHTML = '<div class="text-yellow-600 text-xl"><i class="fas fa-clock mr-2"></i>Waiting for player 2<span class="connecting-dots"></span></div>';
+                    resultEl.classList.add('hidden');
+                    rematchBtn.classList.add('hidden');
+                } else if (this.gameState.gameStatus === 'playing') {
+                    const currentPlayerSymbol = this.gameState.currentPlayer === 1 ? '🦒' : '🐼';
+                    const isMyTurn = this.gameState.currentPlayer === this.playerNumber;
+                    const turnText = isMyTurn ? 'Your turn!' : `Player ${this.gameState.currentPlayer}'s turn`;
+                    const statusColor = isMyTurn ? 'text-blue-600' : 'text-gray-600';
+
+                    statusEl.innerHTML = `<div class="${statusColor} text-xl"><i class="fas fa-play mr-2"></i>${turnText} ${currentPlayerSymbol}</div>`;
+                    resultEl.classList.add('hidden');
+                    rematchBtn.classList.add('hidden');
+
+                    // Update player indicators
+                    const player1Info = document.getElementById('player1Info');
+                    const player2Info = document.getElementById('player2Info');
+                    player1Info.classList.toggle('player-active', this.gameState.currentPlayer === 1);
+                    player2Info.classList.toggle('player-active', this.gameState.currentPlayer === 2);
+
+                } else if (this.gameState.gameStatus === 'finished') {
+                    // Remove active player indicators
+                    document.getElementById('player1Info').classList.remove('player-active');
+                    document.getElementById('player2Info').classList.remove('player-active');
+
+                    if (this.gameState.winner === 'draw') {
+                        statusEl.innerHTML = '<div class="text-gray-600 text-xl"><i class="fas fa-handshake mr-2"></i>Game Over - Draw!</div>';
+                        resultMessageEl.innerHTML = '🤝 It\'s a Draw!';
+                    } else {
+                        const winnerSymbol = this.gameState.winner === 1 ? '🦒' : '🐼';
+                        const isWinner = this.gameState.winner === this.playerNumber;
+                        const resultText = isWinner ? 'You Win!' : 'You Lose!';
+                        const resultColor = isWinner ? 'text-green-600' : 'text-red-600';
+
+                        statusEl.innerHTML = '<div class="text-gray-600 text-xl"><i class="fas fa-trophy mr-2"></i>Game Over</div>';
+                        resultMessageEl.innerHTML = `<span class="${resultColor}">${winnerSymbol} ${resultText}</span>`;
+
+                        if (isWinner) {
+                            this.showNotification('Congratulations! You won!', 'success');
+                        }
+                    }
+                    resultEl.classList.remove('hidden');
+                    rematchBtn.classList.remove('hidden');
+                }
+            }
+
+            async updatePlayerInfo() {
+                if (!this.roomRef) return;
+
+                try {
+                    const snapshot = await this.roomRef.child('players').once('value');
+                    const players = snapshot.val() || {};
+
+                    const player1 = Object.values(players).find(p => p.number === 1);
+                    const player2 = Object.values(players).find(p => p.number === 2);
+
+                    // Update player 1 info
+                    const player1Info = document.getElementById('player1Info');
+                    const player1Status = document.getElementById('player1Status');
+                    if (this.playerNumber === 1) {
+                        player1Info.classList.add('ring-4', 'ring-blue-400');
+                        player1Status.innerHTML = '<span class="online-indicator"></span><strong>You</strong>';
+                    } else {
+                        player1Info.classList.remove('ring-4', 'ring-blue-400');
+                        if (player1) {
+                            const indicator = player1.connected ? 'online-indicator' : 'offline-indicator';
+                            const status = player1.connected ? 'Online' : 'Disconnected';
+                            player1Status.innerHTML = `<span class="${indicator}"></span>${status}`;
+                        } else {
+                            player1Status.innerHTML = '<span class="offline-indicator"></span>Empty';
+                        }
+                    }
+
+                    // Update player 2 info
+                    const player2Info = document.getElementById('player2Info');
+                    const player2Status = document.getElementById('player2Status');
+                    if (this.playerNumber === 2) {
+                        player2Info.classList.add('ring-4', 'ring-orange-400');
+                        player2Status.innerHTML = '<span class="online-indicator"></span><strong>You</strong>';
+                    } else {
+                        player2Info.classList.remove('ring-4', 'ring-orange-400');
+                        if (player2) {
+                            const indicator = player2.connected ? 'online-indicator' : 'offline-indicator';
+                            const status = player2.connected ? 'Online' : 'Disconnected';
+                            player2Status.innerHTML = `<span class="${indicator}"></span>${status}`;
+                        } else {
+                            player2Status.innerHTML = '<span class="offline-indicator"></span>Waiting...';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating player info:', error);
+                }
+            }
+
+            handleRoomNotFound() {
+                this.showNotification('Room no longer exists or connection lost', 'error');
+                this.showHomeView();
+            }
+
+            async requestRematch() {
+                if (!this.roomRef) return;
+
+                try {
+                    const updates = {
+                        'gameState/board': Array(9).fill(''),
+                        'gameState/currentPlayer': 1,
+                        'gameState/gameStatus': 'playing',
+                        'gameState/winner': null,
+                        'gameState/winningCells': [],
+                        'gameState/lastMove': null,
+                        'lastUpdate': firebase.database.ServerValue.TIMESTAMP
+                    };
+
+                    await this.roomRef.update(updates);
+                    this.showNotification('New game started!', 'success');
+                } catch (error) {
+                    console.error('Error requesting rematch:', error);
+                    this.showNotification('Failed to start new game. Please try again.', 'error');
+                }
+            }
+
+            leaveGame() {
+                if (this.presenceInterval) {
+                    clearInterval(this.presenceInterval);
+                    this.presenceInterval = null;
+                }
+
+                if (this.roomRef && this.playerId) {
+                    this.roomRef.child(`players/${this.playerId}`).remove();
+                    this.roomRef.off();
+                    this.roomRef = null;
+                }
+
+                this.currentRoom = null;
+                this.playerNumber = null;
+                this.updateURL();
+            }
+
+            updateURL(roomCode = null) {
+                const url = new URL(window.location);
+                if (roomCode) {
+                    url.searchParams.set('room', roomCode);
+                } else {
+                    url.searchParams.delete('room');
+                }
+                window.history.replaceState({}, '', url);
+            }
+        }
+
+        // Initialize the game when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            window.game = new FirebaseTicTacToe();
+        });
+    </script>
+</body>
+
+</html>
