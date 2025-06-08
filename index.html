@@ -142,7 +142,7 @@
     <div id="setupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-2xl p-8 max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div class="text-center mb-6">
-                <div class="text-6xl mb-4">🔥🦒🐼</div>
+                <div class="text-6xl mb-4">🔥🦒🐒</div>
                 <h2 class="text-3xl font-bold text-gray-800 mb-2">Firebase Setup Required</h2>
                 <p class="text-gray-600">This game uses Firebase for real-time multiplayer functionality</p>
             </div>
@@ -234,7 +234,7 @@
     <!-- Loading Screen -->
     <div id="loadingScreen" class="fixed inset-0 bg-white flex items-center justify-center z-40">
         <div class="text-center">
-            <div class="text-6xl mb-4">🦒🐼</div>
+            <div class="text-6xl mb-4">🦒🐒</div>
             <div class="text-xl font-semibold text-gray-700 mb-4">Connecting to game server...</div>
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
         </div>
@@ -244,7 +244,7 @@
         <!-- Header -->
         <div class="text-center mb-8">
             <h1 class="text-4xl md:text-6xl font-bold text-gray-800 mb-2">
-                🦒 vs 🐼
+                🦒 vs 🐒
             </h1>
             <p class="text-xl text-gray-600 mb-2">Real-time Multiplayer Tic Tac Toe</p>
             <div id="connectionStatus" class="text-sm">
@@ -375,7 +375,7 @@
                         </div>
                         <div id="player2Info"
                             class="player-indicator text-center p-6 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
-                            <div class="text-5xl mb-3">🐼</div>
+                            <div class="text-5xl mb-3">🐒</div>
                             <div class="font-bold text-lg text-orange-800">Player 2 (Panda)</div>
                             <div id="player2Status" class="text-sm text-gray-600 flex items-center justify-center mt-2">
                             </div>
@@ -956,7 +956,7 @@
                 const cells = document.querySelectorAll('.board-cell');
                 cells.forEach((cell, index) => {
                     const value = this.gameState.board[index];
-                    cell.textContent = value === 'giraffe' ? '🦒' : value === 'panda' ? '🐼' : '';
+                    cell.textContent = value === 'giraffe' ? '🦒' : value === 'panda' ? '🐒' : '';
 
                     if (value) {
                         cell.classList.add('occupied');
@@ -987,7 +987,7 @@
                     resultEl.classList.add('hidden');
                     rematchBtn.classList.add('hidden');
                 } else if (this.gameState.gameStatus === 'playing') {
-                    const currentPlayerSymbol = this.gameState.currentPlayer === 1 ? '🦒' : '🐼';
+                    const currentPlayerSymbol = this.gameState.currentPlayer === 1 ? '🦒' : '🐒';
                     const isMyTurn = this.gameState.currentPlayer === this.playerNumber;
                     const turnText = isMyTurn ? 'Your turn!' : `Player ${this.gameState.currentPlayer}'s turn`;
                     const statusColor = isMyTurn ? 'text-blue-600' : 'text-gray-600';
@@ -1011,7 +1011,7 @@
                         statusEl.innerHTML = '<div class="text-gray-600 text-xl"><i class="fas fa-handshake mr-2"></i>Game Over - Draw!</div>';
                         resultMessageEl.innerHTML = '🤝 It\'s a Draw!';
                     } else {
-                        const winnerSymbol = this.gameState.winner === 1 ? '🦒' : '🐼';
+                        const winnerSymbol = this.gameState.winner === 1 ? '🦒' : '🐒';
                         const isWinner = this.gameState.winner === this.playerNumber;
                         const resultText = isWinner ? 'You Win!' : 'You Lose!';
                         const resultColor = isWinner ? 'text-green-600' : 'text-red-600';
